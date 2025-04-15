@@ -163,7 +163,7 @@ to cooperate
   set score score + 1                                                ; this agent's reputation increases
   set cooperations-this-turn cooperations-this-turn + 1              ; update the cooperation counter
 
-  iset balance balance + 1
+  set balance balance + 1
         ;ask current-partner [ set balance balance - 1 ]
 
 
