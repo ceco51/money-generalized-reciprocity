@@ -1,271 +1,136 @@
-## Money as a mechanism of generalized reciprocity:
-## Evolution and cooperation rate charts for reference scenario.
-## Simulated data for money and control scenarios, with variations in liquidity and benefit-cost parameters.
-## All the generated charts are included in the main manuscript.
-
-
-# 1. Import libraries and packages, set file path -------------------------
-library(here)
+# Load the required libraries 
 library(tidyverse)
-library(janitor)
+library(dplyr)
+library(purrr)
+library(readr)
 
-here() # Validation: this command should display the main folder containing the R project (not the subfolder containing this specific script)
+# A C++ simulation generates one CSV file for each unique combination 
+# of parameters (BC, Liquidity) tested during an experiment. The output files follow a naming convention like:
+# Example filename: "param_7_sim_BC3_L10_183418.csv"
+# Each CSV file contains simulation results for a specific parameter set.
 
+# An *experiment* refers to a batch run of simulations over various parameter combinations, 
+# with all corresponding CSV files saved in a designated output directory (see C++ code).
 
-# 2. Import and process NetLogo BehaviorSpace data  -----------------------
+# The code below lists all CSV files produced by the C++ simulation in the target folder.
 
-# 2.1 Simulation data with money:
+# Define the directory where the simulation outputs are stored.
+file_path <- "C:\\Users\\Francesco\\Desktop\\money_c++\\Main\\Figure2"  # Replace with your actual directory path
+csv_files <- list.files(path = file_path, 
+                        pattern = "*.csv", 
+                        full.names = TRUE
+                        )
+
+# Read and combine all CSV files
+all_data <- csv_files %>%
+  map_df(~read_csv(.x, show_col_types = FALSE))  # This reads each file and row-binds them together
+
+# Data from an experiment (i.e., a batch of BC, liquidity combinations) in a single dataframe
 df_core_money <- 
-  here("Simulation data", "Main simulation data - money scenario.csv") %>% 
-  read.csv(skip = 6) %>% 
-  clean_names() %>%
+  all_data %>%
   as_tibble()  %>% 
-  select(-starts_with("sum_fit"), -starts_with("sum_bal"),-starts_with("sum_sco"), -starts_with(("x_sum"))) %>%
-  rename(
-    step = x_step, 
-    run_number = x_run_number,
-    bc_ratio = benefit_to_cost_ratio,
-    liquidity = initial_liquidity 
+  mutate(
+    BCRatio = as.factor(BCRatio),
+    Liquidity = as.factor(Liquidity),
+    Total = Cooperators + 
+      Defectors + 
+      DirectReciprocators + 
+      IndirectReciprocators + 
+      MoneyUsers
   ) %>% 
   mutate(
-    bc_ratio = as.factor(bc_ratio),
-    liquidity = as.factor(liquidity)
+    ShareCooperators = Cooperators / Total,
+    ShareDefectors = Defectors / Total,
+    ShareDR = DirectReciprocators / Total,
+    ShareIR = IndirectReciprocators / Total,
+    ShareMoney = MoneyUsers / Total
   ) %>% 
-  mutate(
-    share_cooperators = count_cooperators / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_defectors = count_defectors / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_directs = count_directs / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_indirects = count_indirects / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_moneys = count_moneys / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys )
-  ) %>% 
-  select(-starts_with("count_")) %>% 
-  pivot_longer(cols = starts_with("share_"), names_to = "strategy", values_to = "survivor_count") %>% 
-  mutate(strategy =
+  select(-(c("Cooperators", 
+             "Defectors", 
+             "DirectReciprocators", 
+             "IndirectReciprocators", 
+             "MoneyUsers"))) %>% 
+  pivot_longer(
+    cols = starts_with("Share"), 
+    names_to = "Strategy", 
+    values_to = "SurvivorCount") %>%
+  mutate(Strategy =
            case_when(
-             strategy == "share_cooperators" ~ "cooperators",
-             strategy == "share_defectors" ~ "defectors",
-             strategy == "share_directs" ~ "direct-reciprocators",
-             strategy == "share_indirects" ~ "indirect-reciprocators",
-             strategy == "share_moneys" ~ "money-users",
+             Strategy == "ShareCooperators" ~ "Cooperators",
+             Strategy == "ShareDefectors" ~ "Defectors",
+             Strategy == "ShareDR" ~ "Direct-reciprocators",
+             Strategy == "ShareIR" ~ "Indirect-reciprocators",
+             Strategy == "ShareMoney" ~ "Money-users",
            )
   )
 
-# 2.2 Simulation data - control:
-df_core_control <- 
-  here("Simulation data", "Main simulation data - control scenario.csv") %>% 
-  read.csv(skip = 6) %>% 
-  clean_names() %>%
-  as_tibble()  %>% 
-  select(-starts_with("sum_fit"), -starts_with("sum_bal"),-starts_with("sum_sco"), -starts_with(("x_sum"))) %>%
-  rename(
-    step = x_step, 
-    run_number = x_run_number,
-    bc_ratio = benefit_to_cost_ratio,
-    liquidity = initial_liquidity 
-  ) %>% 
-  mutate(
-    bc_ratio = as.factor(bc_ratio),
-    liquidity = as.factor(liquidity)
-  ) %>% 
-  mutate(
-    share_cooperators = count_cooperators / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_defectors = count_defectors / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_directs = count_directs / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_indirects = count_indirects / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys ),
-    share_moneys = count_moneys / ( count_cooperators + count_defectors + count_directs + count_indirects + count_moneys )
-  ) %>% 
-  select(-starts_with("count_")) %>% 
-  pivot_longer(cols = starts_with("share_"), names_to = "strategy", values_to = "survivor_count") %>% 
-  mutate(strategy =
-           case_when(
-             strategy == "share_cooperators" ~ "cooperators",
-             strategy == "share_defectors" ~ "defectors",
-             strategy == "share_directs" ~ "direct-reciprocators",
-             strategy == "share_indirects" ~ "indirect-reciprocators",
-             strategy == "share_moneys" ~ "money-users",
-           )
-  )
+######### Evolutionary trajectories of strategies and cooperation rates #########
 
+# The experiment folder may contain more parameter combinations than actually used.
+# Therefore, after loading all files, we give the possibility to apply filters to retain only the relevant ones.
 
-
-
-# 3. Draw main evolution plots --------------------------------------------
-
-# 3.1 Plot cooperation rates and share of surviving strategies in time (with money, selected parameter values)
-p_money = df_core_money %>% 
-  filter(bc_ratio %in% c(2, 3, 5, 10)) %>%
-  filter(liquidity %in% c(0.25, 1, 10, 100)) %>% 
-  ggplot(aes(x=step)) +
+Figure2 <- df_core_money %>% 
+  filter(BCRatio %in% c(2, 3, 5, 10)) %>%
+  filter(Liquidity %in% c(0.25, 1, 10, 50)) %>% 
+  ggplot(aes(x = Step)) + # x-axis: Simulation step/tick
   ylim(0, 1) +
   stat_summary(
-    aes(y = cooperation_rate, shape = ""),
+    aes(y = CooperationRate),
     fun.data = "median_hilow",
     geom = "point",
-    size = 0.5,
-    alpha = 0.9
+    size = 0.95,
+    alpha = 0.9,
+    data = . %>% filter(Step != 0) # Exclude initialization
   ) +
   stat_summary(
-    aes(y = cooperation_rate, linetype = ""),
+    aes(y = CooperationRate),
     fun.data = "median_hilow",
     geom = "errorbar",
-    alpha = 0.6
+    alpha = 0.8,
+    data = . %>% filter(Step != 0) # Exclude initialization
   ) +
   stat_summary(
-    aes(y=survivor_count, color = strategy), 
+    aes(y = SurvivorCount, color = Strategy), 
     fun.data = "median_hilow", 
     geom = "line",
-    linewidth = 0.75
+    linewidth = 0.8
   ) +
   stat_summary(
-    aes(y=survivor_count, fill = strategy), 
+    aes(y = SurvivorCount, fill = Strategy), 
     fun.data = "median_hilow", 
     geom = "ribbon", 
     alpha = 0.2
   ) +
-  scale_color_manual(values = c("cooperators" = "#F8766D",
-                                "defectors"="#ABA300",
-                                "direct-reciprocators"="#00BE67",
-                                "indirect-reciprocators"="#00B8E7",
-                                "money-users"="#7153a1"
+  scale_fill_manual(values = c( # Ribbons
+    "Cooperators" = "#FF6666",
+    "Defectors" = "#E6C700",
+    "Direct-reciprocators" = "#9966CC",
+    "Indirect-reciprocators" = "#33AAFF",
+    "Money-users" = "#33CC99"
   )) +
-  scale_fill_manual(values = c("cooperators" = "#F8766D",
-                               "defectors"="#ABA300",
-                               "direct-reciprocators"="#00BE67",
-                               "indirect-reciprocators"="#00B8E7",
-                               "money-users"="#7153a1"
-  )) +
-  labs(
-    x = "Simulation time step",
-    y = "Proportion (0-1)",
-    color = "Share of survivors by strategy",
-    fill = "Share of survivors by strategy",
-    shape = "Cooperation rate",
-    linetype = "Cooperation rate",
-    #title = "With money: evolution of surviving strategies and cooperation rates (Median and IQR over 100 repetitions; total population = 500)"
-  ) +
-  facet_grid(liquidity ~ bc_ratio, labeller = label_both) +
-  theme_minimal()
-
-
-# 3.2 Plot cooperation rates and share of surviving strategies in time (control scenario without money, selected parameter values)
-p_control = df_core_control %>% 
-  filter(bc_ratio %in% c(2, 3, 5, 10)) %>%
-  ggplot(aes(x=step)) +
-  ylim(0, 1) +
-  stat_summary(
-    aes(y = cooperation_rate, shape = ""),
-    fun.data = "median_hilow",
-    geom = "point",
-    size = 0.5,
-    alpha = 0.9
-  ) +
-  stat_summary(
-    aes(y = cooperation_rate, linetype = ""),
-    fun.data = "median_hilow",
-    geom = "errorbar",
-    alpha = 0.6
-  ) +
-  stat_summary(
-    aes(y=survivor_count, color = strategy), 
-    fun.data = "median_hilow", 
-    geom = "line",
-    linewidth = 0.75
-  ) +
-  stat_summary(
-    aes(y=survivor_count, fill = strategy), 
-    fun.data = "median_hilow", 
-    geom = "ribbon", 
-    alpha = 0.2
-  ) +
-  scale_color_manual(values = c("cooperators" = "#F8766D",
-                                "defectors"="#ABA300",
-                                "direct-reciprocators"="#00BE67",
-                                "indirect-reciprocators"="#00B8E7"
-                                #"money-users"="#7153a1"
-  )) +
-  scale_fill_manual(values = c("cooperators" = "#F8766D",
-                               "defectors"="#ABA300",
-                               "direct-reciprocators"="#00BE67",
-                               "indirect-reciprocators"="#00B8E7"
-                               #"money-users"="#7153a1"
+  scale_color_manual(values = c( # Medians
+    "Cooperators" = "#CC0000",
+    "Defectors" = "#B39700",
+    "Direct-reciprocators" = "#663399",
+    "Indirect-reciprocators" = "#0077CC",
+    "Money-users" = "#009966"
   )) +
   labs(
-    x = "Simulation time step",
-    y = "Proportion (0-1)",
-    color = "Share of survivors by strategy",
-    fill = "Share of survivors by strategy",
-    shape = "Cooperation rate",
-    linetype = "Cooperation rate",
-    #title = "Without money: evolution of surviving strategies and cooperation rates (Median and IQR over 100 repetitions; total population = 500)"
+    y = "Population Mix and Cooperation Rates"
   ) +
-  facet_grid( ~ bc_ratio, labeller = label_both) +
-  theme_minimal()
-
-
-# 4. Draw end-of-run plots ------------------------------------------------
-
-# 4.1 Plot cooperation rates at end of run, in relation to liquidity, for a fixed value of benefit/cost ratio (2)
-p_liquidity_bc2_end <- df_core_money %>% 
-  filter(step == 10000) %>% 
-  filter(bc_ratio == 2) %>% 
-  filter(!liquidity %in% c(0, .05, 1000, 10000)) %>% 
-  ggplot(aes(x=liquidity)) +
-  geom_boxplot(aes(y=cooperation_rate)) + #, fill = "#7153a1") +
-  labs(
-    x = "Liquidity",
-    y = "Cooperation rates"
-    #title = "Cooperation rates at 10000 simulation steps (boxplots over 100 repetitions, benefit-to-cost ratio = 2)"
-  ) + 
-  theme_minimal()
-
-# 4.2 Plot summarized cooperation rates and strategy prevalence at end of run for broad liquidity and benefit-to-cost ratios
-p_bc_liquidity_end <- df_core_money %>% 
-  filter(step == 10000) %>% 
-  filter(!liquidity %in% c(0, 0.5, .05, 0.1, 0.75, 1000, 10000)) %>% 
-  filter(!bc_ratio %in% c(1, 1.1, 1000)) %>% view()
-  pivot_wider(names_from = strategy, values_from = survivor_count) %>% view()
-  mutate(most_prevalent = case_when(
-    cooperators > 0.5 ~ "cooperators",
-    defectors > 0.5 ~ "defectors",
-    `direct-reciprocators` > 0.5 ~ "direct-reciprocators",
-    `indirect-reciprocators` > 0.5 ~ "indirect-reciprocators",
-    `money-users` > 0.5 ~ "money-users",
-    TRUE ~ "none above 50%"
-  )) %>% 
-  group_by(bc_ratio, liquidity) %>% 
-  mutate(liquidity = fct_rev(liquidity)) %>% 
-  summarize(mean_cooperation_rate = mean(cooperation_rate), sd_cooperation_rate = sd(cooperation_rate), most_prevalent = names(which.max(table(most_prevalent))) ) %>% 
-  ggplot(aes(x=bc_ratio, y = liquidity)) + 
-  geom_tile(aes(alpha = mean_cooperation_rate, fill = most_prevalent), lwd = 1, color = "black") +
-  coord_fixed() +
-  scale_alpha(range = c(0.3, 1)) +
-  geom_text(aes(label = sprintf("%.2f", mean_cooperation_rate), alpha = mean_cooperation_rate), nudge_y = 0.05, size = 4) +
-  geom_text(aes(label = sprintf("%.2f", sd_cooperation_rate), alpha = mean_cooperation_rate), nudge_y = -0.15, size = 3) +
-  scale_fill_manual(
-    values = c("defectors"="#ABA300","money-users"="#7153a1","none above 50%" = "darkgrey")) +
-  labs(
-    x = "Benefit-to-cost ratio",
-    y = "Liquidity",
-    fill = "Most commonly prevalent strategy",
-    alpha = "Mean cooperation rate"
-    #title = "With money: cooperation rates and most common winning strategies at 1000 steps (Mean and SD over 100 repetitions; total population = 500)"
-  ) +
-  theme(panel.grid.major = element_blank(),  
-        panel.grid.minor = element_blank(),  
-        panel.background = element_blank(),  
+  facet_grid(Liquidity ~ BCRatio, labeller = label_both) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",  # removes all legends
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    axis.title = element_text(size = 18),
+    panel.spacing.y = unit(1, "lines"),
+    panel.grid.major.x = element_line(color = "gray90"),
+    panel.grid.major.y = element_line(color = "gray90"),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5)
   )
 
-
-
-# 5. Generate visualizations ----------------------------------------------
-p_control
-p_money
-p_liquidity_bc2_end
-p_bc_liquidity_end
-
-#######################################END#################################
-
-
-
-
-
+Figure2
