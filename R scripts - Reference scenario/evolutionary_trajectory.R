@@ -69,6 +69,8 @@ df_core_money <-
 # The experiment folder may contain more parameter combinations than actually used.
 # Therefore, after loading all files, we give the possibility to apply filters to retain only the relevant ones.
 
+# For example, here we reproduce Figure 2 of the main manuscript 
+
 Figure2 <- df_core_money %>% 
   filter(BCRatio %in% c(2, 3, 5, 10)) %>%
   filter(Liquidity %in% c(0.25, 1, 10, 50)) %>% 
