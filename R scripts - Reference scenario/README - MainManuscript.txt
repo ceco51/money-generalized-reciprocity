@@ -1,6 +1,10 @@
 Money as a mechanism of generalized reciprocity: R scripts for the reference simulation with 500 agents in the main manuscript.
 
-The "money_analysis_main.R" script generates the Figures reported in the main manuscript (Figures 2, 3, 4 and 5).
+The "evolutionary_trajectory.R" script generates the figures illustrating the evolutionary trajectories of the population mix and 
+overall cooperation rates, such as Figure 2 and Figure 5 in the main manuscript and Figure S3 in the SI.
+
+The provided example reproduces Figure 2 from the main manuscript. To generate other figures, simply adjust the path to the 
+corresponding directory where you have the set of CSV files. The script is flexible and can be applied to any batch of simulations.
 
 This script works with CSV files produced either by the C++ implementation or by the NetLogo model. The only difference lies in 
 how the data is read from the output directory. The C++ version produces one CSV file per parameter combination in a given 
